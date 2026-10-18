@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('./routes/auth');
 const expenseRoutes = require('./routes/expenses');
+const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -12,5 +13,8 @@ app.get('/health', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/expenses', expenseRoutes);
+
+app.use(notFound);
+app.use(errorHandler);
 
 module.exports = app;

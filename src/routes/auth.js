@@ -3,60 +3,55 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const config = require('../config');
+const validate = require('../middleware/validate');
+const asyncHandler = require('../utils/asyncHandler');
+const HttpError = require('../utils/httpError');
+const { registerSchema, loginSchema } = require('../schemas/auth');
 
 const router = express.Router();
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+router.post(
+  '/register',
+  validate(registerSchema),
+  asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
 
-router.post('/register', async (req, res) => {
-  const { email, password } = req.body;
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existing) {
+      throw new HttpError(409, 'An account with this email already exists');
+    }
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'email and password are required' });
-  }
-  if (!EMAIL_PATTERN.test(email)) {
-    return res.status(400).json({ error: 'email is not valid' });
-  }
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'password must be at least 8 characters long' });
-  }
+    const passwordHash = await bcrypt.hash(password, config.bcryptRounds);
+    const result = db
+      .prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
+      .run(email, passwordHash);
 
-  const normalizedEmail = email.trim().toLowerCase();
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
-  if (existing) {
-    return res.status(409).json({ error: 'An account with this email already exists' });
-  }
+    res.status(201).json({ id: result.lastInsertRowid, email });
+  }),
+);
 
-  const passwordHash = await bcrypt.hash(password, config.bcryptRounds);
-  const result = db
-    .prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
-    .run(normalizedEmail, passwordHash);
+router.post(
+  '/login',
+  validate(loginSchema),
+  asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
 
-  res.status(201).json({ id: result.lastInsertRowid, email: normalizedEmail });
-});
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    if (!user) {
+      throw new HttpError(401, 'Invalid email or password');
+    }
 
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+    const passwordMatches = bcrypt.compare(password, user.password_hash);
+    if (!passwordMatches) {
+      throw new HttpError(401, 'Invalid email or password');
+    }
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'email and password are required' });
-  }
+    const token = jwt.sign({ sub: user.id, email: user.email }, config.jwtSecret, {
+      expiresIn: config.jwtExpiresIn,
+    });
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid email or password' });
-  }
-
-  const passwordMatches = bcrypt.compare(password, user.password_hash);
-  if (!passwordMatches) {
-    return res.status(401).json({ error: 'Invalid email or password' });
-  }
-
-  const token = jwt.sign({ sub: user.id, email: user.email }, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn,
-  });
-
-  res.json({ token, expiresIn: config.jwtExpiresIn });
-});
+    res.json({ token, expiresIn: config.jwtExpiresIn });
+  }),
+);
 
 module.exports = router;
