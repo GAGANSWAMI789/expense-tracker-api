@@ -10,6 +10,7 @@ const router = express.Router();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_BYTES = 72;
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-real-password', config.bcryptRounds);
 
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.length > 0;
@@ -66,12 +67,12 @@ router.post(
     }
 
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
+    const passwordMatches = await bcrypt.compare(
+      password,
+      user ? user.password_hash : DUMMY_PASSWORD_HASH,
+    );
 
-    const passwordMatches = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatches) {
+    if (!user || !passwordMatches) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
