@@ -3,7 +3,10 @@ const { z } = require('zod');
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a date in YYYY-MM-DD format')
-  .refine((value) => !Number.isNaN(Date.parse(value)), 'must be a valid date');
+  .refine((value) => {
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }, 'must be a valid date');
 
 const createExpenseSchema = z.object({
   title: z.string().trim().min(1, 'title is required').max(100),
