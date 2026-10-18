@@ -79,5 +79,15 @@ describe('auth', () => {
       const res = await login({ email: 1, password: 'password123' });
       expect(res.status).toBe(400);
     });
+
+    it('returns 400 for malformed JSON', async () => {
+      const res = await request(app)
+        .post('/auth/login')
+        .set('Content-Type', 'application/json')
+        .send('{"email":');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Request body is not valid JSON');
+    });
   });
 });
