@@ -54,6 +54,14 @@ describe('listing expenses', () => {
     expect(res.body.pagination.total).toBe(0);
   });
 
+  it.each(['', '   '])('rejects an empty category filter %j', async (category) => {
+    const res = await request(app)
+      .get(`/expenses?category=${encodeURIComponent(category)}`)
+      .set(bearer(token));
+
+    expect(res.status).toBe(400);
+  });
+
   it('rejects a limit above 100', async () => {
     const res = await request(app).get('/expenses?limit=500').set(bearer(token));
     expect(res.status).toBe(400);

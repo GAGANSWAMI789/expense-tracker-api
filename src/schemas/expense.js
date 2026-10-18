@@ -24,7 +24,7 @@ const updateExpenseSchema = createExpenseSchema
 const listExpensesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  category: z.string().trim().toLowerCase().max(30).optional(),
+  category: z.string().trim().toLowerCase().min(1, 'category cannot be empty').max(30).optional(),
 });
 
 module.exports = {
