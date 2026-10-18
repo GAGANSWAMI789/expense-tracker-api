@@ -13,4 +13,9 @@ app.get('/health', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/expenses', expenseRoutes);
 
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Something went wrong' });
+});
+
 module.exports = app;
