@@ -80,6 +80,11 @@ describe('auth', () => {
       expect(res.status).toBe(400);
     });
 
+    it('rejects a password longer than 72 bytes before hashing', async () => {
+      const res = await login({ email: 'existing@example.com', password: 'a'.repeat(50000) });
+      expect(res.status).toBe(400);
+    });
+
     it('returns 400 for malformed JSON', async () => {
       const res = await request(app)
         .post('/auth/login')
