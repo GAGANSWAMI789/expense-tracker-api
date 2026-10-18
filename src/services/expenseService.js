@@ -27,14 +27,16 @@ function listExpenses(userId, { page, limit, category }) {
   const offset = (page - 1) * limit;
 
   let filter = 'WHERE user_id = ?';
+  const params = [userId];
   if (category) {
-    filter += ` AND category = '${category}'`;
+    filter += ' AND category = ?';
+    params.push(category);
   }
 
   const expenses = db
     .prepare(`SELECT * FROM expenses ${filter} ORDER BY spent_on DESC, id DESC LIMIT ? OFFSET ?`)
-    .all(userId, limit, offset);
-  const { total } = db.prepare(`SELECT COUNT(*) AS total FROM expenses ${filter}`).get(userId);
+    .all(...params, limit, offset);
+  const { total } = db.prepare(`SELECT COUNT(*) AS total FROM expenses ${filter}`).get(...params);
 
   return {
     data: expenses,
@@ -42,7 +44,7 @@ function listExpenses(userId, { page, limit, category }) {
       page,
       limit,
       total,
-      totalPages: Math.floor(total / limit),
+      totalPages: Math.ceil(total / limit),
     },
   };
 }
