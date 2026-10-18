@@ -10,6 +10,8 @@ const { registerSchema, loginSchema } = require('../schemas/auth');
 
 const router = express.Router();
 
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-real-password', config.bcryptRounds);
+
 router.post(
   '/register',
   validate(registerSchema),
@@ -46,12 +48,12 @@ router.post(
     const { email, password } = req.body;
 
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (!user) {
-      throw new HttpError(401, 'Invalid email or password');
-    }
+    const passwordMatches = await bcrypt.compare(
+      password,
+      user ? user.password_hash : DUMMY_PASSWORD_HASH,
+    );
 
-    const passwordMatches = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatches) {
+    if (!user || !passwordMatches) {
       throw new HttpError(401, 'Invalid email or password');
     }
 

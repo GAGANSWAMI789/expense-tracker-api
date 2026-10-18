@@ -13,6 +13,10 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({ error: 'Request body is not valid JSON' });
   }
 
+  if (err.status >= 400 && err.status < 500) {
+    return res.status(err.status).json({ error: err.message });
+  }
+
   console.error(err);
   res.status(500).json({ error: 'Something went wrong' });
 }
