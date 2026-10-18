@@ -1,47 +1,83 @@
 const request = require('supertest');
 const app = require('../src/app');
 
+const register = (body) => request(app).post('/auth/register').send(body);
+const login = (body) => request(app).post('/auth/login').send(body);
+
 describe('auth', () => {
-  it('registers a new user', async () => {
-    const res = await request(app)
-      .post('/auth/register')
-      .send({ email: 'Asha@Example.com', password: 'password123' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.email).toBe('asha@example.com');
-    expect(res.body).not.toHaveProperty('password_hash');
+  beforeAll(async () => {
+    await register({ email: 'existing@example.com', password: 'password123' });
   });
 
-  it('rejects a duplicate email', async () => {
-    const res = await request(app)
-      .post('/auth/register')
-      .send({ email: 'asha@example.com', password: 'password123' });
+  describe('register', () => {
+    it('creates an account with a normalized email', async () => {
+      const res = await register({ email: 'Asha@Example.com', password: 'password123' });
 
-    expect(res.status).toBe(409);
+      expect(res.status).toBe(201);
+      expect(res.body.email).toBe('asha@example.com');
+      expect(res.body).not.toHaveProperty('password_hash');
+    });
+
+    it('rejects a duplicate email', async () => {
+      const res = await register({ email: 'Existing@example.com', password: 'password123' });
+      expect(res.status).toBe(409);
+    });
+
+    it('returns 409 for concurrent registrations of the same email', async () => {
+      const body = { email: 'race@example.com', password: 'password123' };
+      const statuses = (await Promise.all([register(body), register(body)])).map((res) => res.status);
+
+      expect(statuses.sort()).toEqual([201, 409]);
+    });
+
+    it('rejects a short password', async () => {
+      const res = await register({ email: 'ravi@example.com', password: 'short' });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a password longer than 72 bytes', async () => {
+      const res = await register({ email: 'long@example.com', password: 'a'.repeat(73) });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects an overly long email without hanging', async () => {
+      const res = await register({ email: `a@${'.'.repeat(50000)} `, password: 'password123' });
+      expect(res.status).toBe(400);
+    });
+
+    it.each([
+      [{ email: 1, password: 'password123' }],
+      [{ email: ['a@b.co'], password: 'password123' }],
+      [{ email: 'num@example.com', password: 12345678 }],
+    ])('rejects non-string input %j', async (body) => {
+      const res = await register(body);
+      expect(res.status).toBe(400);
+    });
   });
 
-  it('rejects a short password', async () => {
-    const res = await request(app)
-      .post('/auth/register')
-      .send({ email: 'ravi@example.com', password: 'short' });
+  describe('login', () => {
+    it('returns a token for valid credentials', async () => {
+      const res = await login({ email: 'existing@example.com', password: 'password123' });
 
-    expect(res.status).toBe(400);
-  });
+      expect(res.status).toBe(200);
+      expect(typeof res.body.token).toBe('string');
+    });
 
-  it('logs in and returns a token', async () => {
-    const res = await request(app)
-      .post('/auth/login')
-      .send({ email: 'asha@example.com', password: 'password123' });
+    it('rejects a wrong password', async () => {
+      const res = await login({ email: 'existing@example.com', password: 'wrong-password' });
 
-    expect(res.status).toBe(200);
-    expect(typeof res.body.token).toBe('string');
-  });
+      expect(res.status).toBe(401);
+      expect(res.body).not.toHaveProperty('token');
+    });
 
-  it('rejects login for an unknown email', async () => {
-    const res = await request(app)
-      .post('/auth/login')
-      .send({ email: 'nobody@example.com', password: 'password123' });
+    it('rejects an unknown email', async () => {
+      const res = await login({ email: 'nobody@example.com', password: 'password123' });
+      expect(res.status).toBe(401);
+    });
 
-    expect(res.status).toBe(401);
+    it('rejects non-string input', async () => {
+      const res = await login({ email: 1, password: 'password123' });
+      expect(res.status).toBe(400);
+    });
   });
 });

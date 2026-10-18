@@ -4,7 +4,7 @@ const config = require('../config');
 function requireAuth(req, res, next) {
   const [scheme, token] = (req.headers.authorization || '').split(' ');
 
-  if (scheme !== 'Bearer' || !token) {
+  if (scheme.toLowerCase() !== 'bearer' || !token) {
     return res.status(401).json({ error: 'Missing or malformed Authorization header' });
   }
 
