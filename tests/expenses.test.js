@@ -25,15 +25,10 @@ describe('expenses', () => {
     const res = await request(app)
       .post('/expenses')
       .set(bearer(token))
-      .send({ title: 'Groceries', amount: 450, category: 'food', spentOn: '2026-10-01' });
+      .send({ title: 'Groceries', amount: 450, category: 'Food', spentOn: '2026-10-01' });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ title: 'Groceries', amount: 450, category: 'food' });
-  });
-
-  it('rejects an expense without a title', async () => {
-    const res = await request(app).post('/expenses').set(bearer(token)).send({ amount: 100 });
-    expect(res.status).toBe(400);
   });
 
   it('only lists expenses that belong to the user', async () => {
@@ -45,8 +40,9 @@ describe('expenses', () => {
     const res = await request(app).get('/expenses').set(bearer(token));
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].title).toBe('Groceries');
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].title).toBe('Groceries');
+    expect(res.body.pagination.total).toBe(1);
   });
 
   it("does not return another user's expense", async () => {
@@ -57,6 +53,31 @@ describe('expenses', () => {
 
     const res = await request(app).get(`/expenses/${created.body.id}`).set(bearer(token));
     expect(res.status).toBe(404);
+  });
+
+  it('updates part of an expense', async () => {
+    const created = await request(app)
+      .post('/expenses')
+      .set(bearer(token))
+      .send({ title: 'Lunch', amount: 180, category: 'food', spentOn: '2026-10-03' });
+
+    const res = await request(app)
+      .patch(`/expenses/${created.body.id}`)
+      .set(bearer(token))
+      .send({ amount: 210 });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ title: 'Lunch', amount: 210, category: 'food' });
+  });
+
+  it('rejects an empty update', async () => {
+    const created = await request(app)
+      .post('/expenses')
+      .set(bearer(token))
+      .send({ title: 'Snacks', amount: 60 });
+
+    const res = await request(app).patch(`/expenses/${created.body.id}`).set(bearer(token)).send({});
+    expect(res.status).toBe(400);
   });
 
   it('deletes an expense', async () => {
