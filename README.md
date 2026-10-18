@@ -10,19 +10,38 @@ cp .env.example .env
 npm run dev
 ```
 
-The API runs on `http://localhost:3000` by default.
+The API runs on `http://localhost:3000` by default. Set `JWT_SECRET` in `.env` before running it anywhere other than your own machine.
 
-## Endpoints
+## Authentication
+
+Register an account, log in, and send the returned token with every request to `/expenses`:
+
+```
+Authorization: Bearer <token>
+```
+
+| Method | Path             | Description                 |
+| ------ | ---------------- | --------------------------- |
+| POST   | `/auth/register` | Create an account           |
+| POST   | `/auth/login`    | Log in and receive a token  |
+
+```json
+{
+  "email": "meera@example.com",
+  "password": "password123"
+}
+```
+
+## Expenses
+
+All expense endpoints require a valid token and only work with the current user's expenses.
 
 | Method | Path            | Description          |
 | ------ | --------------- | -------------------- |
-| GET    | `/health`       | Health check         |
-| GET    | `/expenses`     | List all expenses    |
+| GET    | `/expenses`     | List your expenses   |
 | GET    | `/expenses/:id` | Get a single expense |
 | POST   | `/expenses`     | Create an expense    |
 | DELETE | `/expenses/:id` | Delete an expense    |
-
-Example request body for creating an expense:
 
 ```json
 {
