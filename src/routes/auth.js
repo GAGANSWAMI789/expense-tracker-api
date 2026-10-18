@@ -22,9 +22,18 @@ router.post(
     }
 
     const passwordHash = await bcrypt.hash(password, config.bcryptRounds);
-    const result = db
-      .prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
-      .run(email, passwordHash);
+
+    let result;
+    try {
+      result = db
+        .prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
+        .run(email, passwordHash);
+    } catch (err) {
+      if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+        throw new HttpError(409, 'An account with this email already exists');
+      }
+      throw err;
+    }
 
     res.status(201).json({ id: result.lastInsertRowid, email });
   }),
@@ -41,7 +50,7 @@ router.post(
       throw new HttpError(401, 'Invalid email or password');
     }
 
-    const passwordMatches = bcrypt.compare(password, user.password_hash);
+    const passwordMatches = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatches) {
       throw new HttpError(401, 'Invalid email or password');
     }

@@ -68,7 +68,7 @@ function updateExpense(userId, id, changes) {
 }
 
 function deleteExpense(userId, id) {
-  const result = db.prepare('DELETE FROM expenses WHERE id = ?').run(id);
+  const result = db.prepare('DELETE FROM expenses WHERE id = ? AND user_id = ?').run(id, userId);
   if (result.changes === 0) {
     throw new HttpError(404, 'Expense not found');
   }

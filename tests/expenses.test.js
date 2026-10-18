@@ -1,4 +1,5 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const { createUser, bearer } = require('./helpers');
 
@@ -19,6 +20,25 @@ describe('expenses', () => {
   it('rejects an invalid token', async () => {
     const res = await request(app).get('/expenses').set(bearer('not-a-real-token'));
     expect(res.status).toBe(401);
+  });
+
+  it('rejects a token signed with a different secret', async () => {
+    const forged = jwt.sign({ sub: 1, email: 'meera@example.com' }, 'some-other-secret');
+    const res = await request(app).get('/expenses').set(bearer(forged));
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects an expired token', async () => {
+    const expired = jwt.sign({ sub: 1, email: 'meera@example.com' }, process.env.JWT_SECRET, {
+      expiresIn: -1,
+    });
+    const res = await request(app).get('/expenses').set(bearer(expired));
+    expect(res.status).toBe(401);
+  });
+
+  it('accepts a lowercase bearer scheme', async () => {
+    const res = await request(app).get('/expenses').set({ Authorization: `bearer ${token}` });
+    expect(res.status).toBe(200);
   });
 
   it('creates an expense', async () => {
@@ -91,5 +111,18 @@ describe('expenses', () => {
 
     const lookup = await request(app).get(`/expenses/${created.body.id}`).set(bearer(token));
     expect(lookup.status).toBe(404);
+  });
+
+  it("cannot delete another user's expense", async () => {
+    const created = await request(app)
+      .post('/expenses')
+      .set(bearer(otherToken))
+      .send({ title: 'Concert', amount: 2500, category: 'entertainment' });
+
+    const res = await request(app).delete(`/expenses/${created.body.id}`).set(bearer(token));
+    expect(res.status).toBe(404);
+
+    const lookup = await request(app).get(`/expenses/${created.body.id}`).set(bearer(otherToken));
+    expect(lookup.status).toBe(200);
   });
 });

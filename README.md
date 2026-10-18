@@ -10,7 +10,11 @@ cp .env.example .env
 npm run dev
 ```
 
-The API runs on `http://localhost:3000` by default. Set `JWT_SECRET` in `.env` before running it anywhere other than your own machine.
+The API runs on `http://localhost:3000` by default. It refuses to start without `JWT_SECRET`, so generate one and put it in `.env`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
 
 ## Authentication
 
