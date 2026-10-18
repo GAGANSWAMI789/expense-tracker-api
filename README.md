@@ -82,6 +82,30 @@ The response is paginated:
 
 Errors always come back as JSON with an `error` message. Validation errors also include a `details` array listing each invalid field.
 
+## Reports
+
+| Method | Path               | Description                                |
+| ------ | ------------------ | ------------------------------------------ |
+| GET    | `/reports/monthly` | Spending by category for a month           |
+| GET    | `/reports/yearly`  | Spending per month for a year              |
+
+`/reports/monthly?month=2026-03` defaults to the current month:
+
+```json
+{
+  "month": "2026-03",
+  "total": 19000,
+  "count": 4,
+  "breakdown": [
+    { "category": "housing", "count": 1, "total": 15000 },
+    { "category": "food", "count": 2, "total": 3500 },
+    { "category": "travel", "count": 1, "total": 500 }
+  ]
+}
+```
+
+`/reports/yearly?year=2026` defaults to the current year and always returns all twelve months, with zeros for months that have no expenses.
+
 ## Running tests
 
 ```bash
