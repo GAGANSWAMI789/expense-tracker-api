@@ -45,7 +45,7 @@ describe('expenses', () => {
     const res = await request(app)
       .post('/expenses')
       .set(bearer(token))
-      .send({ title: 'Groceries', amount: 450, category: 'Food', spentOn: '2026-10-01' });
+      .send({ title: 'Groceries', amount: 450, category: 'food', spentOn: '2026-10-01' });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ title: 'Groceries', amount: 450, category: 'food' });
@@ -89,6 +89,64 @@ describe('expenses', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ title: 'Lunch', amount: 210, category: 'food' });
   });
+
+  it('keeps stored fields that a PATCH leaves out', async () => {
+    const created = await request(app)
+      .post('/expenses')
+      .set(bearer(token))
+      .send({ title: 'Books', amount: 900, category: 'education', spentOn: '2026-10-04' });
+
+    await request(app).patch(`/expenses/${created.body.id}`).set(bearer(token)).send({ amount: 950 });
+
+    const stored = await request(app).get(`/expenses/${created.body.id}`).set(bearer(token));
+    expect(stored.body).toMatchObject({
+      title: 'Books',
+      amount: 950,
+      category: 'education',
+      spent_on: '2026-10-04',
+    });
+  });
+
+  it('stores categories trimmed and in lowercase', async () => {
+    const res = await request(app)
+      .post('/expenses')
+      .set(bearer(token))
+      .send({ title: 'Bus pass', amount: 300, category: '  Travel ' });
+
+    expect(res.body.category).toBe('travel');
+  });
+
+  it("cannot update another user's expense", async () => {
+    const created = await request(app)
+      .post('/expenses')
+      .set(bearer(otherToken))
+      .send({ title: 'Dentist', amount: 1800, category: 'health' });
+
+    const res = await request(app)
+      .patch(`/expenses/${created.body.id}`)
+      .set(bearer(token))
+      .send({ amount: 1 });
+    expect(res.status).toBe(404);
+
+    const stored = await request(app).get(`/expenses/${created.body.id}`).set(bearer(otherToken));
+    expect(stored.body.amount).toBe(1800);
+  });
+
+  it.each([[{ amount: -5 }], [{ title: null }], [{ title: '   ' }], [{ spentOn: '2026-02-30' }]])(
+    'rejects an invalid update %j',
+    async (body) => {
+      const created = await request(app)
+        .post('/expenses')
+        .set(bearer(token))
+        .send({ title: 'Tea', amount: 40 });
+
+      const res = await request(app)
+        .patch(`/expenses/${created.body.id}`)
+        .set(bearer(token))
+        .send(body);
+      expect(res.status).toBe(400);
+    },
+  );
 
   it('rejects an empty update', async () => {
     const created = await request(app)

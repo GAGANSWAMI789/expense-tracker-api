@@ -26,7 +26,7 @@ describe('listing expenses', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data[0].title).toBe('Internet');
-    expect(res.body.pagination).toMatchObject({ page: 1, limit: 20, total: 5 });
+    expect(res.body.pagination).toEqual({ page: 1, limit: 20, total: 5, totalPages: 1 });
   });
 
   it('paginates results', async () => {
@@ -34,6 +34,7 @@ describe('listing expenses', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.map((expense) => expense.title)).toEqual(['Dinner', 'Electricity']);
+    expect(res.body.pagination.totalPages).toBe(3);
   });
 
   it('filters by category', async () => {
@@ -42,6 +43,15 @@ describe('listing expenses', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
     expect(res.body.data.every((expense) => expense.category === 'food')).toBe(true);
+  });
+
+  it('treats the category filter as a value, not as SQL', async () => {
+    const category = encodeURIComponent("x' or '1'='1");
+    const res = await request(app).get(`/expenses?category=${category}`).set(bearer(token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(0);
+    expect(res.body.pagination.total).toBe(0);
   });
 
   it('rejects a limit above 100', async () => {

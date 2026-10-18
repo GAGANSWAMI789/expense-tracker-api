@@ -57,7 +57,7 @@ All expense endpoints require a valid token and only work with the current user'
 }
 ```
 
-`title` and `amount` are required. `amount` must be a positive number, `spentOn` must use the `YYYY-MM-DD` format and defaults to today, and `category` defaults to `other`.
+`title` and `amount` are required. `amount` must be a positive number, `spentOn` must use the `YYYY-MM-DD` format and defaults to today, and `category` is trimmed, stored in lowercase and defaults to `other`.
 
 ### Listing and filtering
 
