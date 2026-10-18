@@ -1,8 +1,12 @@
 const db = require('../db');
 
+function roundCurrency(value) {
+  return Math.round(value * 100) / 100;
+}
+
 function monthBounds(month) {
   const [year, monthNumber] = month.split('-').map(Number);
-  const lastDay = new Date(year, monthNumber, 0).getDate();
+  const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
 
   return {
     start: `${month}-01`,
@@ -13,31 +17,18 @@ function monthBounds(month) {
 function getMonthlySummary(userId, month) {
   const { start, end } = monthBounds(month);
 
-  const categories = db
+  const breakdown = db
     .prepare(
-      `SELECT DISTINCT category FROM expenses
-       WHERE user_id = ? AND spent_on >= ? AND spent_on < ?`,
+      `SELECT category, COUNT(*) AS count, ROUND(SUM(amount), 2) AS total
+       FROM expenses
+       WHERE user_id = ? AND spent_on BETWEEN ? AND ?
+       GROUP BY category
+       ORDER BY total DESC, category ASC`,
     )
-    .all(userId, start, end);
+    .all(userId, start, end)
+    .map(({ category, count, total }) => ({ category, count, total }));
 
-  const breakdown = categories.map(({ category }) => {
-    const expenses = db
-      .prepare(
-        `SELECT amount FROM expenses
-         WHERE user_id = ? AND category = ? AND spent_on >= ? AND spent_on < ?`,
-      )
-      .all(userId, category, start, end);
-
-    return {
-      category,
-      count: expenses.length,
-      total: expenses.reduce((sum, expense) => sum + expense.amount, 0),
-    };
-  });
-
-  breakdown.sort((a, b) => b.total - a.total);
-
-  const total = breakdown.reduce((sum, item) => sum + item.total, 0);
+  const total = roundCurrency(breakdown.reduce((sum, item) => sum + item.total, 0));
   const count = breakdown.reduce((sum, item) => sum + item.count, 0);
 
   return { month, total, count, breakdown };
@@ -62,7 +53,7 @@ function getYearlySummary(userId, year) {
     return { month, total: row ? row.total : 0, count: row ? row.count : 0 };
   });
 
-  const total = months.reduce((sum, item) => sum + item.total, 0);
+  const total = roundCurrency(months.reduce((sum, item) => sum + item.total, 0));
 
   return { year, total, months };
 }
