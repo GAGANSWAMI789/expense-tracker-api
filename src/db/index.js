@@ -28,4 +28,6 @@ if (!expenseColumns.some((column) => column.name === 'user_id')) {
   db.exec('ALTER TABLE expenses ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE');
 }
 
+db.exec('CREATE INDEX IF NOT EXISTS idx_expenses_user_spent_on ON expenses (user_id, spent_on)');
+
 module.exports = db;
